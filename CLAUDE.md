@@ -105,7 +105,7 @@ Update this list as steps are completed.
 - [x] 23 Billing / webhooks
 - [x] 24 Observability
 - [x] 25 Docker
-- [ ] 26 CI/CD
+- [x] 26 CI/CD
 - [ ] 27 Cloud deployment
 - [ ] 28 Performance / security hardening
 - [ ] 29 Selected microservice extraction

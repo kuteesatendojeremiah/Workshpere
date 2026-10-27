@@ -1,0 +1,89 @@
+# Release: pushing a version tag (for example v1.4.0) runs the full CI, then publishes versioned,
+# immutable container images and a GitHub Release.
+#
+#   git tag v1.4.0 && git push origin v1.4.0
+#
+# "Versioned artifacts" (spec section 27): every release is images tagged with its exact version AND the
+# commit, so a deployment can name exactly what it runs and a rollback is "deploy the previous tag".
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+jobs:
+  # Never publish what has not passed the same checks as every pull request.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish images
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write   # create the GitHub Release
+      packages: write   # push to the GitHub Container Registry
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+      - uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image names (the registry requires lower case)
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "BACKEND_IMAGE=ghcr.io/${owner}/worksphere-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${owner}/worksphere-frontend" >> "$GITHUB_ENV"
+
+      - name: Backend image tags
+        id: backend_meta
+        uses: docker/metadata-action@f19c3691d56f26e3f97547999df66a9ecbf0d9b0 # v5.1.0
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=long
+      - name: Publish the backend image
+        uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
+        with:
+          context: backend
+          push: true
+          tags: ${{ steps.backend_meta.outputs.tags }}
+          labels: ${{ steps.backend_meta.outputs.labels }}
+          provenance: true # records how and from what the image was built
+          sbom: true       # the list of everything inside it
+
+      - name: Frontend image tags
+        id: frontend_meta
+        uses: docker/metadata-action@f19c3691d56f26e3f97547999df66a9ecbf0d9b0 # v5.1.0
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=long
+      - name: Publish the frontend image
+        uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.frontend_meta.outputs.tags }}
+          labels: ${{ steps.frontend_meta.outputs.labels }}
+          provenance: true
+          sbom: true
+
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@fb2d03176f42a1f0dd433ca263f314051d3edd44 # v2.0.7
+        with:
+          generate_release_notes: true
+          body: |
+            Images (use these exact tags when deploying or rolling back):
+
+            - `${{ env.BACKEND_IMAGE }}:${{ steps.backend_meta.outputs.version }}`
+            - `${{ env.FRONTEND_IMAGE }}:${{ steps.frontend_meta.outputs.version }}`

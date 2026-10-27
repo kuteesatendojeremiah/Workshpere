@@ -1,0 +1,9 @@
+# Pull requests that touch these paths automatically request a review from the owner. With branch
+# protection's "Require review from Code Owners" this makes review of sensitive areas mandatory.
+*                       @kuteesatendojeremiah
+/.github/               @kuteesatendojeremiah
+/infra/                 @kuteesatendojeremiah
+/docker-compose.yml     @kuteesatendojeremiah
+/backend/src/main/resources/db/migration/   @kuteesatendojeremiah
+/backend/src/main/java/com/worksphere/identity/   @kuteesatendojeremiah
+/backend/src/main/java/com/worksphere/billing/    @kuteesatendojeremiah

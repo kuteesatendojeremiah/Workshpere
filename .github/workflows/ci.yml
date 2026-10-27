@@ -1,0 +1,129 @@
+# Continuous integration: every pull request and every push to main must pass all of this.
+# Third-party actions are pinned to an exact commit (a movable tag could be repointed at malicious code);
+# Dependabot proposes updates to the pins. The "# vX" comment says which release each hash is.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Lets the release workflow run the very same checks before publishing anything.
+  workflow_call:
+
+# The default token can only read the repository. Jobs ask for more only when they need it.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4.9.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      # The integration tests start PostgreSQL, Redis, Kafka, MinIO and Mailpit with Testcontainers;
+      # GitHub's Linux runners have Docker. Includes the JaCoCo coverage gate (see pom.xml).
+      - name: Build and test
+        working-directory: backend
+        run: ./mvnw -B verify
+      - name: Keep the test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-reports
+          path: |
+            backend/target/surefire-reports
+            backend/target/site/jacoco
+          retention-days: 14
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exactly what the lockfile says
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check and build
+        run: npm run build
+      - name: Unit and component tests
+        run: npm test
+      # Production dependencies must have no known high-severity vulnerability. (Dev-only tooling is
+      # reported by Dependabot but does not block a merge.)
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  images:
+    name: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+      - name: The compose file is valid
+        run: docker compose --profile app --profile observability config --quiet
+      # Build only (no push): proves the Dockerfiles work on a clean Linux machine.
+      - name: Build the backend image
+        uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
+        with:
+          context: backend
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Build the frontend image
+        uses: docker/build-push-action@f6010ea70151369b06f0194be1051fbbdff851b2 # v6.0.2
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+  secrets-scan:
+    name: secrets-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        with:
+          fetch-depth: 0 # the whole history: a secret deleted later is still in old commits
+      # Run as a container so no licensed third-party action is needed.
+      - name: Scan for committed secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 \
+            detect --source /repo --no-banner --redact --verbose
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      # Blocks a pull request that ADDS a dependency with a known high-severity vulnerability.
+      - uses: actions/dependency-review-action@fd07d42ce87ab09f10c61a2d1a5e59e6c655620a # v4.1.1
+        with:
+          fail-on-severity: high
