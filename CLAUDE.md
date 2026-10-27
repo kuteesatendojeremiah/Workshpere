@@ -100,7 +100,7 @@ Update this list as steps are completed.
 - [x] 18 Testing hardening
 - [x] 19 WebSockets
 - [x] 20 Redis
-- [ ] 21 Kafka + outbox
+- [x] 21 Kafka + outbox
 - [ ] 22 Files + email
 - [ ] 23 Billing / webhooks
 - [ ] 24 Observability

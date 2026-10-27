@@ -1,5 +1,7 @@
 package com.worksphere.issue;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.identity.User;
 import com.worksphere.identity.UserService;
 import com.worksphere.notification.NotificationService;
@@ -24,18 +26,21 @@ public class IssueService {
     private final TaskService taskService;
     private final UserService userService;
     private final NotificationService notificationService;
+    private final OutboxService outboxService;
 
     public IssueService(
             IssueRepository issueRepository,
             ProjectService projectService,
             TaskService taskService,
             UserService userService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            OutboxService outboxService) {
         this.issueRepository = issueRepository;
         this.projectService = projectService;
         this.taskService = taskService;
         this.userService = userService;
         this.notificationService = notificationService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -49,8 +54,15 @@ public class IssueService {
             IssueEnvironment environment) {
         Project project = projectService.requireProjectAccess(projectId, reporterUserId);
         User reporter = userService.getProfile(reporterUserId);
-        return issueRepository.save(
+        Issue issue = issueRepository.save(
                 new Issue(project, title, description, severity, priority, environment, reporter));
+        outboxService.record(
+                DomainEventType.ISSUE_CREATED,
+                "ISSUE",
+                issue.getId(),
+                project.getOrganization().getId(),
+                java.util.Map.of("projectId", String.valueOf(projectId), "reportedBy", String.valueOf(reporterUserId)));
+        return issue;
     }
 
     @Transactional(readOnly = true)

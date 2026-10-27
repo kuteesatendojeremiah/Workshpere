@@ -25,7 +25,26 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        # Fail fast when Kafka is down: the outbox relay just retries later.
+        request.timeout.ms: 3000
+        delivery.timeout.ms: 5000
+        max.block.ms: 3000
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    listener:
+      ack-mode: record
+
 app:
+  outbox:
+    topic: worksphere.events
+    poll-interval-ms: 1000
   jwt:
     secret: ${JWT_SECRET:local-development-only-secret-key-never-use-this-in-prod}
     access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}

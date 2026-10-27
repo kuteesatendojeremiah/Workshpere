@@ -29,6 +29,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 class IssueServiceTest {
 
     @Mock
+    private com.worksphere.common.outbox.OutboxService outboxService;
+
+    @Mock
     private IssueRepository issueRepository;
 
     @Mock
@@ -47,7 +50,7 @@ class IssueServiceTest {
 
     @BeforeEach
     void setUp() {
-        issueService = new IssueService(issueRepository, projectService, taskService, userService, notificationService);
+        issueService = new IssueService(issueRepository, projectService, taskService, userService, notificationService, outboxService);
     }
 
     @Test

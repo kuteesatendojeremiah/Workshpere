@@ -1,5 +1,7 @@
 package com.worksphere.task;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.error.StaleVersionException;
 import com.worksphere.common.realtime.RealtimePublisher;
 import com.worksphere.identity.User;
@@ -30,6 +32,7 @@ public class TaskService {
     private final NotificationService notificationService;
     private final RealtimePublisher realtimePublisher;
     private final TaskSummaryCache taskSummaryCache;
+    private final OutboxService outboxService;
 
     public TaskService(
             TaskRepository taskRepository,
@@ -38,7 +41,8 @@ public class TaskService {
             UserService userService,
             NotificationService notificationService,
             RealtimePublisher realtimePublisher,
-            TaskSummaryCache taskSummaryCache) {
+            TaskSummaryCache taskSummaryCache,
+            OutboxService outboxService) {
         this.taskRepository = taskRepository;
         this.taskDependencyRepository = taskDependencyRepository;
         this.projectService = projectService;
@@ -46,6 +50,7 @@ public class TaskService {
         this.notificationService = notificationService;
         this.realtimePublisher = realtimePublisher;
         this.taskSummaryCache = taskSummaryCache;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -56,6 +61,12 @@ public class TaskService {
         task.setPosition(taskRepository.countByProject_IdAndStatus(projectId, TaskStatus.TODO));
         Task saved = taskRepository.save(task);
         taskSummaryCache.evictAfterCommit(projectId);
+        outboxService.record(
+                DomainEventType.TASK_CREATED,
+                "TASK",
+                saved.getId(),
+                project.getOrganization().getId(),
+                java.util.Map.of("projectId", String.valueOf(projectId), "createdBy", String.valueOf(callerUserId)));
         realtimePublisher.boardChanged(projectId, "TASK_CREATED", saved.getId());
         return saved;
     }
@@ -185,6 +196,15 @@ public class TaskService {
 
         if (newStatus != currentStatus) {
             taskSummaryCache.evictAfterCommit(projectId);
+            outboxService.record(
+                    DomainEventType.TASK_STATUS_CHANGED,
+                    "TASK",
+                    task.getId(),
+                    task.getProject().getOrganization().getId(),
+                    java.util.Map.of(
+                            "projectId", String.valueOf(projectId),
+                            "from", currentStatus.name(),
+                            "to", newStatus.name()));
         }
         realtimePublisher.boardChanged(projectId, "TASK_MOVED", task.getId());
         return task;
@@ -222,6 +242,12 @@ public class TaskService {
                     "TASK",
                     task.getId());
         }
+        outboxService.record(
+                DomainEventType.TASK_ASSIGNED,
+                "TASK",
+                task.getId(),
+                task.getProject().getOrganization().getId(),
+                java.util.Map.of("projectId", String.valueOf(task.getProject().getId()), "assignee", String.valueOf(assigneeId)));
         realtimePublisher.boardChanged(task.getProject().getId(), "TASK_UPDATED", task.getId());
         return task;
     }

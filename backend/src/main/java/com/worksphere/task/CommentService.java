@@ -1,5 +1,7 @@
 package com.worksphere.task;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.error.MissingPermissionException;
 import com.worksphere.common.security.PermissionChecker;
 import com.worksphere.identity.User;
@@ -28,6 +30,7 @@ public class CommentService {
     private final OrganizationService organizationService;
     private final UserService userService;
     private final PermissionChecker permissionChecker;
+    private final OutboxService outboxService;
     private final NotificationService notificationService;
 
     public CommentService(
@@ -38,7 +41,8 @@ public class CommentService {
             OrganizationService organizationService,
             UserService userService,
             PermissionChecker permissionChecker,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            OutboxService outboxService) {
         this.commentRepository = commentRepository;
         this.mentionRepository = mentionRepository;
         this.taskService = taskService;
@@ -47,6 +51,7 @@ public class CommentService {
         this.userService = userService;
         this.permissionChecker = permissionChecker;
         this.notificationService = notificationService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -72,6 +77,12 @@ public class CommentService {
             }
         }
 
+        outboxService.record(
+                DomainEventType.COMMENT_CREATED,
+                "COMMENT",
+                comment.getId(),
+                task.getProject().getOrganization().getId(),
+                java.util.Map.of("taskId", String.valueOf(taskId), "author", String.valueOf(authorUserId)));
         return comment;
     }
 

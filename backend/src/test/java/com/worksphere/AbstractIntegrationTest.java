@@ -3,7 +3,9 @@ package com.worksphere;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * Base class for tests that need a real PostgreSQL database. The container's connection
@@ -32,8 +34,13 @@ public abstract class AbstractIntegrationTest {
     @ServiceConnection(name = "redis")
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7").withExposedPorts(6379);
 
+    @ServiceConnection
+    static final KafkaContainer KAFKA =
+            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+
     static {
         POSTGRES.start();
         REDIS.start();
+        KAFKA.start();
     }
 }

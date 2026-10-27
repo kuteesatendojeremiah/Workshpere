@@ -1,5 +1,7 @@
 package com.worksphere.organization;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
 import com.worksphere.common.audit.AuditResourceType;
 import com.worksphere.common.audit.AuditService;
@@ -33,6 +35,7 @@ public class InvitationService {
     private final UserService userService;
     private final SecureTokenGenerator tokenGenerator;
     private final PermissionChecker permissionChecker;
+    private final OutboxService outboxService;
     private final AuditService auditService;
 
     public InvitationService(
@@ -43,7 +46,8 @@ public class InvitationService {
             UserService userService,
             SecureTokenGenerator tokenGenerator,
             PermissionChecker permissionChecker,
-            AuditService auditService) {
+            AuditService auditService,
+            OutboxService outboxService) {
         this.invitationRepository = invitationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.roleRepository = roleRepository;
@@ -52,6 +56,7 @@ public class InvitationService {
         this.tokenGenerator = tokenGenerator;
         this.permissionChecker = permissionChecker;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -84,6 +89,12 @@ public class InvitationService {
                 AuditResourceType.INVITATION,
                 invitation.getId(),
                 Map.of("email", email));
+        outboxService.record(
+                DomainEventType.MEMBER_INVITED,
+                "INVITATION",
+                invitation.getId(),
+                organizationId,
+                java.util.Map.of("invitedBy", String.valueOf(inviterUserId)));
 
         return invitation;
     }

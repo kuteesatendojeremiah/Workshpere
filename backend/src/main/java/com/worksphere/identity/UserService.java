@@ -1,5 +1,7 @@
 package com.worksphere.identity;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
 import com.worksphere.common.audit.AuditResourceType;
 import com.worksphere.common.audit.AuditService;
@@ -23,18 +25,21 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final SecureTokenGenerator tokenGenerator;
     private final AuditService auditService;
+    private final OutboxService outboxService;
 
     public UserService(
             UserRepository userRepository,
             EmailVerificationTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
             SecureTokenGenerator tokenGenerator,
-            AuditService auditService) {
+            AuditService auditService,
+            OutboxService outboxService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenGenerator = tokenGenerator;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -49,6 +54,7 @@ public class UserService {
         issueVerificationToken(user);
 
         auditService.record(null, user.getId(), AuditAction.USER_REGISTERED, AuditResourceType.USER, user.getId(), null);
+        outboxService.record(DomainEventType.USER_REGISTERED, "USER", user.getId(), null, java.util.Map.of());
         return user;
     }
 

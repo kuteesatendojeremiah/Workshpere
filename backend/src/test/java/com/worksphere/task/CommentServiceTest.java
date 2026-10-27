@@ -30,6 +30,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CommentServiceTest {
 
     @Mock
+    private com.worksphere.common.outbox.OutboxService outboxService;
+
+    @Mock
     private CommentRepository commentRepository;
 
     @Mock
@@ -66,7 +69,7 @@ class CommentServiceTest {
                 organizationService,
                 userService,
                 permissionChecker,
-                notificationService);
+                notificationService, outboxService);
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.worksphere.project;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
 import com.worksphere.common.audit.AuditResourceType;
 import com.worksphere.common.audit.AuditService;
@@ -27,6 +29,7 @@ public class ProjectService {
     private final OrganizationService organizationService;
     private final UserService userService;
     private final PermissionChecker permissionChecker;
+    private final OutboxService outboxService;
     private final AuditService auditService;
 
     public ProjectService(
@@ -35,13 +38,15 @@ public class ProjectService {
             OrganizationService organizationService,
             UserService userService,
             PermissionChecker permissionChecker,
-            AuditService auditService) {
+            AuditService auditService,
+            OutboxService outboxService) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.organizationService = organizationService;
         this.userService = userService;
         this.permissionChecker = permissionChecker;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -55,6 +60,12 @@ public class ProjectService {
 
         auditService.record(
                 organizationId, callerUserId, AuditAction.PROJECT_CREATED, AuditResourceType.PROJECT, project.getId(), null);
+        outboxService.record(
+                DomainEventType.PROJECT_CREATED,
+                "PROJECT",
+                project.getId(),
+                organizationId,
+                java.util.Map.of("createdBy", String.valueOf(callerUserId)));
         return project;
     }
 

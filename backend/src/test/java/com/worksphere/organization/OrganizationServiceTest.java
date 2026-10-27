@@ -32,6 +32,9 @@ import org.springframework.data.domain.Pageable;
 class OrganizationServiceTest {
 
     @Mock
+    private com.worksphere.common.outbox.OutboxService outboxService;
+
+    @Mock
     private OrganizationRepository organizationRepository;
 
     @Mock
@@ -62,7 +65,7 @@ class OrganizationServiceTest {
                 auditLogRepository,
                 userService,
                 permissionChecker,
-                auditService);
+                auditService, outboxService);
     }
 
     @Test

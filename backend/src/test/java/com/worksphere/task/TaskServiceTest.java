@@ -27,6 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TaskServiceTest {
 
     @Mock
+    private com.worksphere.common.outbox.OutboxService outboxService;
+
+    @Mock
     private TaskRepository taskRepository;
 
     @Mock
@@ -52,7 +55,7 @@ class TaskServiceTest {
     @BeforeEach
     void setUp() {
         taskService = new TaskService(
-                taskRepository, taskDependencyRepository, projectService, userService, notificationService, realtimePublisher, taskSummaryCache);
+                taskRepository, taskDependencyRepository, projectService, userService, notificationService, realtimePublisher, taskSummaryCache, outboxService);
     }
 
     @Test

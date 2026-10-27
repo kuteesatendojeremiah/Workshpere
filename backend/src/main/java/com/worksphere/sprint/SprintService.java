@@ -1,5 +1,7 @@
 package com.worksphere.sprint;
 
+import com.worksphere.common.outbox.DomainEventType;
+import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
 import com.worksphere.common.audit.AuditResourceType;
 import com.worksphere.common.audit.AuditService;
@@ -34,6 +36,7 @@ public class SprintService {
     private final OrganizationService organizationService;
     private final PermissionChecker permissionChecker;
     private final AuditService auditService;
+    private final OutboxService outboxService;
 
     public SprintService(
             SprintRepository sprintRepository,
@@ -42,7 +45,8 @@ public class SprintService {
             TaskService taskService,
             OrganizationService organizationService,
             PermissionChecker permissionChecker,
-            AuditService auditService) {
+            AuditService auditService,
+            OutboxService outboxService) {
         this.sprintRepository = sprintRepository;
         this.sprintTaskRepository = sprintTaskRepository;
         this.projectService = projectService;
@@ -50,6 +54,7 @@ public class SprintService {
         this.organizationService = organizationService;
         this.permissionChecker = permissionChecker;
         this.auditService = auditService;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -109,6 +114,12 @@ public class SprintService {
                 AuditResourceType.SPRINT,
                 sprintId,
                 null);
+        outboxService.record(
+                DomainEventType.SPRINT_STARTED,
+                "SPRINT",
+                sprintId,
+                sprint.getProject().getOrganization().getId(),
+                java.util.Map.of("projectId", String.valueOf(sprint.getProject().getId())));
         return sprint;
     }
 
@@ -129,6 +140,12 @@ public class SprintService {
                 AuditResourceType.SPRINT,
                 sprintId,
                 null);
+        outboxService.record(
+                DomainEventType.SPRINT_COMPLETED,
+                "SPRINT",
+                sprintId,
+                sprint.getProject().getOrganization().getId(),
+                java.util.Map.of("projectId", String.valueOf(sprint.getProject().getId())));
         return sprint;
     }
 

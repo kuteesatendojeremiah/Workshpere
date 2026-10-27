@@ -34,6 +34,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 class SprintServiceTest {
 
     @Mock
+    private com.worksphere.common.outbox.OutboxService outboxService;
+
+    @Mock
     private SprintRepository sprintRepository;
 
     @Mock
@@ -66,7 +69,7 @@ class SprintServiceTest {
                 taskService,
                 organizationService,
                 permissionChecker,
-                auditService);
+                auditService, outboxService);
     }
 
     private Project projectWith(Organization organization) {
