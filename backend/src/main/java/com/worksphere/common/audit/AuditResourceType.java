@@ -9,6 +9,7 @@ public final class AuditResourceType {
     public static final String PROJECT = "PROJECT";
     public static final String SPRINT = "SPRINT";
     public static final String FILE = "FILE";
+    public static final String SUBSCRIPTION = "SUBSCRIPTION";
 
     private AuditResourceType() {
     }

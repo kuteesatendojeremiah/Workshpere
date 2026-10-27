@@ -24,6 +24,10 @@ public final class AuditAction {
     public static final String SPRINT_COMPLETED = "SPRINT_COMPLETED";
     public static final String FILE_UPLOADED = "FILE_UPLOADED";
     public static final String FILE_DELETED = "FILE_DELETED";
+    public static final String SUBSCRIPTION_CHANGED = "SUBSCRIPTION_CHANGED";
+    public static final String SUBSCRIPTION_CANCELED = "SUBSCRIPTION_CANCELED";
+    public static final String PAYMENT_SUCCEEDED = "PAYMENT_SUCCEEDED";
+    public static final String PAYMENT_FAILED = "PAYMENT_FAILED";
 
     private AuditAction() {
     }

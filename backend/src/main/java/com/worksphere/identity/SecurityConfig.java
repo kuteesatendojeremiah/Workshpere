@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/health", "/api/v1/auth/**", "/ws/**")
+                        .requestMatchers("/health", "/api/v1/auth/**", "/ws/**", "/api/v1/webhooks/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

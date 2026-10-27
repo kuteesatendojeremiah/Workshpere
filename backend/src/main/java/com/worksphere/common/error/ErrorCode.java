@@ -38,6 +38,10 @@ public final class ErrorCode {
     public static final String INVALID_FILE = "INVALID_FILE";
     public static final String FILE_TOO_LARGE = "FILE_TOO_LARGE";
     public static final String STORAGE_UNAVAILABLE = "STORAGE_UNAVAILABLE";
+    public static final String WEBHOOK_SIGNATURE_INVALID = "WEBHOOK_SIGNATURE_INVALID";
+    public static final String PLAN_NOT_FOUND = "PLAN_NOT_FOUND";
+    public static final String PLAN_LIMIT_REACHED = "PLAN_LIMIT_REACHED";
+    public static final String ALREADY_ON_PLAN = "ALREADY_ON_PLAN";
 
     private ErrorCode() {
     }

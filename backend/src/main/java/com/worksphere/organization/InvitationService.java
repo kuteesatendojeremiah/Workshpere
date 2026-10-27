@@ -1,5 +1,6 @@
 package com.worksphere.organization;
 
+import com.worksphere.billing.BillingService;
 import com.worksphere.common.mail.EmailService;
 import com.worksphere.common.outbox.DomainEventType;
 import com.worksphere.common.outbox.OutboxService;
@@ -38,6 +39,7 @@ public class InvitationService {
     private final PermissionChecker permissionChecker;
     private final OutboxService outboxService;
     private final AuditService auditService;
+    private final BillingService billingService;
     private final EmailService emailService;
 
     public InvitationService(
@@ -50,7 +52,8 @@ public class InvitationService {
             PermissionChecker permissionChecker,
             AuditService auditService,
             OutboxService outboxService,
-            EmailService emailService) {
+            EmailService emailService,
+            BillingService billingService) {
         this.invitationRepository = invitationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.roleRepository = roleRepository;
@@ -61,12 +64,19 @@ public class InvitationService {
         this.auditService = auditService;
         this.outboxService = outboxService;
         this.emailService = emailService;
+        this.billingService = billingService;
     }
 
     @Transactional
     public Invitation invite(UUID organizationId, UUID inviterUserId, String email, String roleName) {
         OrganizationMember inviterMembership = organizationService.requireMembership(organizationId, inviterUserId);
         permissionChecker.requirePermission(inviterMembership.getRole(), MANAGE_ORGANIZATION_MEMBERS);
+        // The plan limits members; invitations that are still open count, or they could be used to go over it.
+        billingService.requireMemberCapacity(
+                organizationId,
+                organizationMemberRepository.countByOrganizationId(organizationId)
+                        + invitationRepository.countByOrganizationIdAndAcceptedAtIsNullAndExpiresAtAfter(
+                                organizationId, Instant.now()));
 
         Role invitedRole = resolveAssignableRole(roleName);
         String rawToken = tokenGenerator.generateRawToken();

@@ -27,6 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class InvitationServiceTest {
 
     @Mock
+    private com.worksphere.billing.BillingService billingService;
+
+    @Mock
     private com.worksphere.common.mail.EmailService emailService;
 
     @Mock
@@ -66,7 +69,7 @@ class InvitationServiceTest {
                 userService,
                 new SecureTokenGenerator(),
                 permissionChecker,
-                auditService, outboxService, emailService);
+                auditService, outboxService, emailService, billingService);
     }
 
     @Test

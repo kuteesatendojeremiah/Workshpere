@@ -1,5 +1,6 @@
 package com.worksphere.project;
 
+import com.worksphere.billing.BillingService;
 import com.worksphere.common.outbox.DomainEventType;
 import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
@@ -31,6 +32,7 @@ public class ProjectService {
     private final PermissionChecker permissionChecker;
     private final OutboxService outboxService;
     private final AuditService auditService;
+    private final BillingService billingService;
 
     public ProjectService(
             ProjectRepository projectRepository,
@@ -39,7 +41,8 @@ public class ProjectService {
             UserService userService,
             PermissionChecker permissionChecker,
             AuditService auditService,
-            OutboxService outboxService) {
+            OutboxService outboxService,
+            BillingService billingService) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.organizationService = organizationService;
@@ -47,12 +50,15 @@ public class ProjectService {
         this.permissionChecker = permissionChecker;
         this.auditService = auditService;
         this.outboxService = outboxService;
+        this.billingService = billingService;
     }
 
     @Transactional
     public Project createProject(UUID organizationId, UUID callerUserId, String name, String description) {
         OrganizationMember callerMembership = organizationService.requireMembership(organizationId, callerUserId);
         permissionChecker.requirePermission(callerMembership.getRole(), MANAGE_PROJECTS);
+        billingService.requireProjectCapacity(
+                organizationId, projectRepository.countByOrganizationIdAndStatus(organizationId, ProjectStatus.ACTIVE));
 
         Project project = projectRepository.save(
                 new Project(callerMembership.getOrganization(), name, description));

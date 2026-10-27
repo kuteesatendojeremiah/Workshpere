@@ -27,6 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ProjectServiceTest {
 
     @Mock
+    private com.worksphere.billing.BillingService billingService;
+
+    @Mock
     private com.worksphere.common.outbox.OutboxService outboxService;
 
     @Mock
@@ -58,7 +61,7 @@ class ProjectServiceTest {
                 organizationService,
                 userService,
                 permissionChecker,
-                auditService, outboxService);
+                auditService, outboxService, billingService);
     }
 
     @Test

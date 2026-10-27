@@ -12,5 +12,7 @@ public interface OrganizationMemberRepository extends JpaRepository<Organization
 
     Page<OrganizationMember> findAllByOrganizationId(UUID organizationId, Pageable pageable);
 
+    int countByOrganizationId(UUID organizationId);
+
     Page<OrganizationMember> findAllByUserId(UUID userId, Pageable pageable);
 }
