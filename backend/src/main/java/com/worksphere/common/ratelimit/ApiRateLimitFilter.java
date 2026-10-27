@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.worksphere.common.error.ErrorCode;
 import com.worksphere.common.error.ErrorResponse;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,13 +42,15 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
 
     private final WindowCounter counter;
     private final RateLimitProperties properties;
+    private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    public ApiRateLimitFilter(WindowCounter counter, RateLimitProperties properties) {
+    public ApiRateLimitFilter(WindowCounter counter, RateLimitProperties properties, MeterRegistry meterRegistry) {
         this.counter = counter;
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -66,6 +69,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         String key = properties.keyPrefix() + ":rl:" + (isAuthEndpoint ? "auth:" : "api:") + callerId(request);
 
         if (counter.increment(key, WINDOW) > limit) {
+            meterRegistry.counter("worksphere.ratelimit.rejected", "scope", isAuthEndpoint ? "auth" : "api").increment();
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader("Retry-After", String.valueOf(WINDOW.toSeconds()));
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);

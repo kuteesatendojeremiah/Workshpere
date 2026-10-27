@@ -1,0 +1,101 @@
+# Alert rules. "for:" is how long the condition must hold before the alert fires (avoids flapping).
+# Every alert says what it means and where to look first; see docs/operations/observability.md.
+groups:
+  - name: worksphere-availability
+    rules:
+      - alert: BackendDown
+        expr: up{job="worksphere-backend"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "The backend is not answering metric scrapes"
+          description: "Prometheus cannot reach the backend. Check the process / container, then /actuator/health/liveness."
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            / sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "More than 5% of requests are failing with a server error"
+          description: "Find the failing requests: search the logs for level=WARN logger=http.access status>=500, then follow one requestId."
+
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "95% of requests take longer than 1 second"
+          description: "Check database pool pressure (HikariPool alerts), slow queries, and external services (Redis, storage)."
+
+  - name: worksphere-dependencies
+    rules:
+      - alert: DatabasePoolSaturated
+        expr: hikaricp_connections_pending > 0 or (hikaricp_connections_active / hikaricp_connections_max) > 0.9
+        for: 3m
+        labels: {severity: critical}
+        annotations:
+          summary: "The database connection pool is exhausted or nearly so"
+          description: "Requests are waiting for a database connection. Look for long transactions or slow queries; do not just restart."
+
+      - alert: RedisUnreachable
+        expr: worksphere_redis_up == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Redis is down: rate limiting and caching are switched off"
+          description: "The API still works (it fails open) but brute-force protection is gone. Restore Redis promptly."
+
+      - alert: OutboxBacklogStuck
+        expr: worksphere_outbox_oldest_age_seconds > 300
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Domain events have been waiting more than 5 minutes to reach Kafka"
+          description: "Kafka or the outbox relay is unhealthy. Check Kafka, then the 'Could not publish outbox event' warnings. No events are lost: they wait in outbox_events."
+
+      - alert: OutboxPublishFailures
+        expr: increase(worksphere_outbox_publish_failures_total[10m]) > 0
+        for: 0m
+        labels: {severity: warning}
+        annotations:
+          summary: "The outbox relay failed to publish events to Kafka"
+          description: "Often transient. If it persists, OutboxBacklogStuck will fire."
+
+      - alert: KafkaConsumerLagging
+        expr: max(kafka_consumer_fetch_manager_records_lag_max) > 1000
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "A Kafka consumer is more than 1000 messages behind"
+          description: "The consumer is slow or failing. Check the dead-letter topic worksphere.events.DLT for poison messages."
+
+  - name: worksphere-security
+    rules:
+      - alert: RateLimitRejectionsSpike
+        expr: sum(rate(worksphere_ratelimit_rejected_total[5m])) > 5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Many requests are being rate limited"
+          description: "Either an abusive client or a limit that is too low. Check scope=auth first (password guessing)."
+
+      - alert: WebhookSignatureRejections
+        expr: increase(worksphere_billing_webhook_total{outcome="SIGNATURE_REJECTED"}[10m]) > 5
+        for: 0m
+        labels: {severity: warning}
+        annotations:
+          summary: "The payment webhook is rejecting signatures"
+          description: "Someone is probing the endpoint, or the WEBHOOK_SECRET differs from the provider's."
+
+  - name: worksphere-jvm
+    rules:
+      - alert: HeapAlmostFull
+        expr: sum(jvm_memory_used_bytes{area="heap"}) / sum(jvm_memory_max_bytes{area="heap"}) > 0.9
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "JVM heap above 90% for 10 minutes"
+          description: "Likely a memory leak or too small a heap. Take a heap dump before restarting."

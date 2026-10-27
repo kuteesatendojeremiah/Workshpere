@@ -53,6 +53,9 @@ spring:
       ack-mode: record
 
 app:
+  observability:
+    # Bearer token Prometheus must present to read /actuator/prometheus. Empty = that endpoint is closed.
+    metrics-token: ${METRICS_TOKEN:}
   billing:
     # Shared with the payment provider. The default is for local development ONLY.
     webhook-secret: ${WEBHOOK_SECRET:local-development-only-webhook-secret}
@@ -73,3 +76,34 @@ app:
     secret: ${JWT_SECRET:local-development-only-secret-key-never-use-this-in-prod}
     access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:15}
     refresh-token-ttl-days: ${JWT_REFRESH_TOKEN_TTL_DAYS:30}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # Anonymous callers (load balancers, orchestrators) only get UP / DOWN, never details.
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        # Liveness: "is the process alive?" Never depends on other systems, or a database outage would
+        # make the orchestrator restart healthy instances in a loop.
+        liveness:
+          include: livenessState
+        # Readiness: "should traffic be sent here?" Only what the app truly cannot work without.
+        # Redis, Kafka, mail and storage are deliberately NOT here: the app degrades without them.
+        readiness:
+          include: readinessState,db
+  health:
+    mail:
+      enabled: false
+  metrics:
+    tags:
+      application: worksphere-backend
+    distribution:
+      # Lets Prometheus compute latency percentiles (p95 / p99) across instances.
+      percentiles-histogram:
+        http.server.requests: true

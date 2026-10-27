@@ -2,6 +2,8 @@ package com.worksphere.identity;
 
 import com.worksphere.common.ratelimit.ApiRateLimitFilter;
 import com.worksphere.common.web.CorrelationIdFilter;
+import com.worksphere.common.web.MetricsAccessFilter;
+import com.worksphere.common.web.RequestLoggingFilter;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +25,8 @@ public class SecurityConfig {
             CorrelationIdFilter correlationIdFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             ApiRateLimitFilter apiRateLimitFilter,
+            RequestLoggingFilter requestLoggingFilter,
+            MetricsAccessFilter metricsAccessFilter,
             JsonAuthenticationEntryPoint authenticationEntryPoint,
             CorsConfigurationSource corsConfigurationSource)
             throws Exception {
@@ -32,15 +36,18 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/health", "/api/v1/auth/**", "/ws/**", "/api/v1/webhooks/**")
+                        .requestMatchers("/health", "/api/v1/auth/**", "/ws/**", "/api/v1/webhooks/**", "/actuator/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
                 .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(requestLoggingFilter, CorrelationIdFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // After the JWT filter, so a signed-in caller is counted by user id, not by IP.
-                .addFilterAfter(apiRateLimitFilter, JwtAuthenticationFilter.class);
+                .addFilterAfter(apiRateLimitFilter, JwtAuthenticationFilter.class)
+                // /actuator/** is permitted above but everything except health and info needs the scrape token.
+                .addFilterAfter(metricsAccessFilter, ApiRateLimitFilter.class);
 
         return http.build();
     }

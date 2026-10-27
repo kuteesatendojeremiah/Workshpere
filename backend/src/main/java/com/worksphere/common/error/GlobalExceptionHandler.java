@@ -13,7 +13,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
@@ -64,6 +70,52 @@ public class GlobalExceptionHandler {
                 "Cannot sort or filter by '" + ex.getPropertyName() + "'",
                 request.getRequestURI());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    /**
+     * Spring's own "this request cannot be routed or understood" errors: unknown URL (404), wrong HTTP
+     * method (405), unsupported or unacceptable media type (415 / 406), missing parameter or file part
+     * (400). Without this they fall into the catch-all below and are reported as 500 INTERNAL_ERROR,
+     * which is wrong for clients and pollutes server-error alerts. The message is generic on purpose.
+     */
+    @ExceptionHandler({
+        NoResourceFoundException.class,
+        HttpRequestMethodNotSupportedException.class,
+        HttpMediaTypeNotSupportedException.class,
+        HttpMediaTypeNotAcceptableException.class,
+        MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class
+    })
+    public ResponseEntity<ErrorResponse> handleRoutingProblem(Exception ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.resolve(((org.springframework.web.ErrorResponse) ex).getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_REQUEST;
+        }
+        String code;
+        String message;
+        switch (status) {
+            case NOT_FOUND -> {
+                code = ErrorCode.NOT_FOUND;
+                message = "The requested resource does not exist";
+            }
+            case METHOD_NOT_ALLOWED -> {
+                code = ErrorCode.METHOD_NOT_ALLOWED;
+                message = "This HTTP method is not supported for this resource";
+            }
+            case UNSUPPORTED_MEDIA_TYPE -> {
+                code = ErrorCode.UNSUPPORTED_MEDIA_TYPE;
+                message = "The request content type is not supported";
+            }
+            case NOT_ACCEPTABLE -> {
+                code = ErrorCode.NOT_ACCEPTABLE;
+                message = "The requested response type is not available";
+            }
+            default -> {
+                code = ErrorCode.VALIDATION_ERROR;
+                message = "The request is missing a required parameter or file";
+            }
+        }
+        return ResponseEntity.status(status).body(ErrorResponse.of(code, message, request.getRequestURI()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

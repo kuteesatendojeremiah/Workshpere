@@ -3,6 +3,10 @@ package com.worksphere.common.error;
 public final class ErrorCode {
 
     public static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+    public static final String NOT_FOUND = "NOT_FOUND";
+    public static final String METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED";
+    public static final String UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE";
+    public static final String NOT_ACCEPTABLE = "NOT_ACCEPTABLE";
     public static final String INTERNAL_ERROR = "INTERNAL_ERROR";
     public static final String EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED";
     public static final String USER_NOT_FOUND = "USER_NOT_FOUND";

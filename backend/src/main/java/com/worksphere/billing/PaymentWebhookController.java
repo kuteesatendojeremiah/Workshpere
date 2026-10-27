@@ -1,6 +1,7 @@
 package com.worksphere.billing;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,17 +18,26 @@ public class PaymentWebhookController {
 
     private final WebhookSignatureVerifier signatureVerifier;
     private final BillingService billingService;
+    private final MeterRegistry meterRegistry;
 
-    public PaymentWebhookController(WebhookSignatureVerifier signatureVerifier, BillingService billingService) {
+    public PaymentWebhookController(
+            WebhookSignatureVerifier signatureVerifier, BillingService billingService, MeterRegistry meterRegistry) {
         this.signatureVerifier = signatureVerifier;
         this.billingService = billingService;
+        this.meterRegistry = meterRegistry;
     }
 
     @PostMapping("/api/v1/webhooks/payment")
     public Map<String, String> receive(
             @RequestHeader(value = "X-Webhook-Signature", required = false) String signature,
             @RequestBody String rawBody) {
-        signatureVerifier.verify(signature, rawBody);
+        try {
+            signatureVerifier.verify(signature, rawBody);
+        } catch (InvalidWebhookSignatureException e) {
+            // A burst of these means someone is probing the endpoint (or the secret was rotated).
+            meterRegistry.counter("worksphere.billing.webhook", "outcome", "SIGNATURE_REJECTED").increment();
+            throw e;
+        }
 
         PaymentWebhookEvent event;
         try {
@@ -36,6 +46,8 @@ public class PaymentWebhookController {
             throw new MalformedWebhookException();
         }
         // 200 for duplicates and for events we ignore: the provider must stop retrying them.
-        return Map.of("status", billingService.handlePaymentEvent(event, rawBody));
+        String outcome = billingService.handlePaymentEvent(event, rawBody);
+        meterRegistry.counter("worksphere.billing.webhook", "outcome", outcome).increment();
+        return Map.of("status", outcome);
     }
 }

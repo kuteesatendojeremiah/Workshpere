@@ -1,5 +1,6 @@
 package com.worksphere.common.outbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,14 +32,17 @@ public class OutboxRelay {
     private final OutboxEventRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final String topic;
+    private final MeterRegistry meterRegistry;
 
     public OutboxRelay(
             OutboxEventRepository repository,
             KafkaTemplate<String, String> kafkaTemplate,
-            @Value("${app.outbox.topic:worksphere.events}") String topic) {
+            @Value("${app.outbox.topic:worksphere.events}") String topic,
+            MeterRegistry meterRegistry) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
         this.topic = topic;
+        this.meterRegistry = meterRegistry;
     }
 
     @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms:1000}")
@@ -51,11 +55,13 @@ public class OutboxRelay {
                         .send(topic, event.getAggregateId().toString(), event.getPayload())
                         .get(5, TimeUnit.SECONDS);
                 event.markPublished();
+                meterRegistry.counter("worksphere.outbox.published").increment();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
                 event.markFailed(e.getMessage());
+                meterRegistry.counter("worksphere.outbox.publish.failures").increment();
                 log.warn("Could not publish outbox event {} (attempt {}): {}", event.getId(), event.getAttempts(),
                         e.getMessage());
                 return; // keep order: do not publish later events before this one

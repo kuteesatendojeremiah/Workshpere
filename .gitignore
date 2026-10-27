@@ -39,3 +39,6 @@ frontend/playwright-report/
 
 # Claude local
 .claude/settings.local.json
+
+# Prometheus scrape token (a secret)
+infra/observability/metrics-token

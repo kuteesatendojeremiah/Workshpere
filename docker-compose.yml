@@ -54,6 +54,34 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # web UI
 
+  # Optional: docker compose --profile observability up -d
+  # Needs infra/observability/metrics-token (a file containing the same value as METRICS_TOKEN).
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - ./infra/observability/metrics-token:/etc/prometheus/metrics-token:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-change-me}
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   minio-data:
   postgres-data:

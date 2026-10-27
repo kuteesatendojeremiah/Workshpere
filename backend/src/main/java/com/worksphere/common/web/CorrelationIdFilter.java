@@ -22,6 +22,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 
     private static final String HEADER_NAME = "X-Request-Id";
     private static final String MDC_KEY = "requestId";
+    private static final java.util.regex.Pattern SAFE_ID = java.util.regex.Pattern.compile("[A-Za-z0-9._-]{1,64}");
 
     @Override
     protected void doFilterInternal(
@@ -30,7 +31,9 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         String requestId = request.getHeader(HEADER_NAME);
-        if (requestId == null || requestId.isBlank()) {
+        // The id is copied into every log line, so a client must not be able to choose arbitrary text
+        // (newlines, huge strings). Anything that is not a short, plain identifier is replaced.
+        if (requestId == null || !SAFE_ID.matcher(requestId).matches()) {
             requestId = UUID.randomUUID().toString();
         }
 
