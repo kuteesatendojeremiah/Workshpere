@@ -49,6 +49,11 @@ public class TaskController {
                 taskService.listTasks(projectId, callerUserId, filter, pageable).map(TaskResponse::from));
     }
 
+    @GetMapping("/api/v1/projects/{projectId}/task-summary")
+    public TaskSummaryResponse summary(@PathVariable UUID projectId, @AuthenticationPrincipal UUID callerUserId) {
+        return taskService.getSummary(projectId, callerUserId);
+    }
+
     @GetMapping("/api/v1/tasks/{taskId}")
     public TaskResponse get(@PathVariable UUID taskId, @AuthenticationPrincipal UUID callerUserId) {
         return TaskResponse.from(taskService.getTask(taskId, callerUserId));

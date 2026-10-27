@@ -29,6 +29,9 @@ class GlobalExceptionHandlerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private com.worksphere.common.ratelimit.ApiRateLimitFilter apiRateLimitFilter;
+
     @Test
     void validationFailureReturnsConsistentErrorShape() throws Exception {
         mockMvc.perform(post("/test/validate")

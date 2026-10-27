@@ -28,6 +28,9 @@ class HealthControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private com.worksphere.common.ratelimit.ApiRateLimitFilter apiRateLimitFilter;
+
     @Test
     void returnsUpStatus() throws Exception {
         mockMvc.perform(get("/health"))

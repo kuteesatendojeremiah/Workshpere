@@ -1,5 +1,6 @@
 package com.worksphere.identity;
 
+import com.worksphere.common.ratelimit.ApiRateLimitFilter;
 import com.worksphere.common.web.CorrelationIdFilter;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ public class SecurityConfig {
             HttpSecurity http,
             CorrelationIdFilter correlationIdFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            ApiRateLimitFilter apiRateLimitFilter,
             JsonAuthenticationEntryPoint authenticationEntryPoint,
             CorsConfigurationSource corsConfigurationSource)
             throws Exception {
@@ -36,7 +38,9 @@ public class SecurityConfig {
                         .authenticated())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
                 .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // After the JWT filter, so a signed-in caller is counted by user id, not by IP.
+                .addFilterAfter(apiRateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

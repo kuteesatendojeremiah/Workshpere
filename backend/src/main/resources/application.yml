@@ -14,6 +14,12 @@ spring:
         default-page-size: 20
         # The Kanban board asks for 200 per column; anything larger is clamped, not honoured.
         max-page-size: 200
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Short timeouts: if Redis is down we fail open quickly instead of hanging every request.
+      timeout: 300ms
+      connect-timeout: 300ms
   jpa:
     open-in-view: false
     hibernate:

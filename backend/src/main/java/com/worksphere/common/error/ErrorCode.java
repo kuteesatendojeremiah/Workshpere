@@ -33,6 +33,7 @@ public final class ErrorCode {
     public static final String ISSUE_NOT_FOUND = "ISSUE_NOT_FOUND";
     public static final String INVALID_LINKED_TASK = "INVALID_LINKED_TASK";
     public static final String NOTIFICATION_NOT_FOUND = "NOTIFICATION_NOT_FOUND";
+    public static final String RATE_LIMITED = "RATE_LIMITED";
 
     private ErrorCode() {
     }

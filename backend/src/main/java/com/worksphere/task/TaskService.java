@@ -11,7 +11,9 @@ import com.worksphere.project.ProjectNotFoundException;
 import com.worksphere.project.ProjectService;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +29,7 @@ public class TaskService {
     private final UserService userService;
     private final NotificationService notificationService;
     private final RealtimePublisher realtimePublisher;
+    private final TaskSummaryCache taskSummaryCache;
 
     public TaskService(
             TaskRepository taskRepository,
@@ -34,13 +37,15 @@ public class TaskService {
             ProjectService projectService,
             UserService userService,
             NotificationService notificationService,
-            RealtimePublisher realtimePublisher) {
+            RealtimePublisher realtimePublisher,
+            TaskSummaryCache taskSummaryCache) {
         this.taskRepository = taskRepository;
         this.taskDependencyRepository = taskDependencyRepository;
         this.projectService = projectService;
         this.userService = userService;
         this.notificationService = notificationService;
         this.realtimePublisher = realtimePublisher;
+        this.taskSummaryCache = taskSummaryCache;
     }
 
     @Transactional
@@ -50,6 +55,7 @@ public class TaskService {
         Task task = new Task(project, title, description, priority, dueDate);
         task.setPosition(taskRepository.countByProject_IdAndStatus(projectId, TaskStatus.TODO));
         Task saved = taskRepository.save(task);
+        taskSummaryCache.evictAfterCommit(projectId);
         realtimePublisher.boardChanged(projectId, "TASK_CREATED", saved.getId());
         return saved;
     }
@@ -57,6 +63,28 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Task getTask(UUID taskId, UUID callerUserId) {
         return requireTaskAccess(taskId, callerUserId);
+    }
+
+    /**
+     * Per-column task counts, served from Redis when possible. The access check comes first, so the
+     * cache can never hand data to someone who may not see the project.
+     */
+    @Transactional(readOnly = true)
+    public TaskSummaryResponse getSummary(UUID projectId, UUID callerUserId) {
+        projectService.requireProjectAccess(projectId, callerUserId);
+
+        return taskSummaryCache.get(projectId).orElseGet(() -> {
+            Map<TaskStatus, Integer> counts = new EnumMap<>(TaskStatus.class);
+            int total = 0;
+            for (TaskStatus status : TaskStatus.values()) {
+                int count = taskRepository.countByProject_IdAndStatus(projectId, status);
+                counts.put(status, count);
+                total += count;
+            }
+            TaskSummaryResponse summary = new TaskSummaryResponse(projectId, counts, total);
+            taskSummaryCache.put(summary);
+            return summary;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -155,6 +183,9 @@ public class TaskService {
                     task.getId());
         }
 
+        if (newStatus != currentStatus) {
+            taskSummaryCache.evictAfterCommit(projectId);
+        }
         realtimePublisher.boardChanged(projectId, "TASK_MOVED", task.getId());
         return task;
     }
@@ -199,6 +230,7 @@ public class TaskService {
     public void deleteTask(UUID taskId, UUID callerUserId) {
         Task task = requireTaskAccess(taskId, callerUserId);
         taskRepository.delete(task);
+        taskSummaryCache.evictAfterCommit(task.getProject().getId());
         realtimePublisher.boardChanged(task.getProject().getId(), "TASK_DELETED", task.getId());
     }
 

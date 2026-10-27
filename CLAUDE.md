@@ -99,7 +99,7 @@ Update this list as steps are completed.
       overview, Kanban board, task details)
 - [x] 18 Testing hardening
 - [x] 19 WebSockets
-- [ ] 20 Redis
+- [x] 20 Redis
 - [ ] 21 Kafka + outbox
 - [ ] 22 Files + email
 - [ ] 23 Billing / webhooks
