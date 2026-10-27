@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ---- Stage 1: build the jar (uses the Maven wrapper, so no Maven needs to be installed) ----
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:24-jdk AS build
 WORKDIR /app
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     && cp target/worksphere-backend-*.jar app.jar
 
 # ---- Stage 2: a small runtime image: only a JRE, the jar, and a non-root user ----
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin worksphere
 WORKDIR /app
 COPY --from=build /app/app.jar app.jar
