@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
+import type { RealtimeEvent } from '../api/realtime'
 import { KanbanBoardPage } from './KanbanBoardPage'
 import type { TaskResponse, TaskStatus } from '../api/types'
 
@@ -19,6 +20,7 @@ vi.mock('../auth/AuthContext', () => ({
 
 const { tasksApi } = await import('../api/tasksApi')
 const { organizationsApi } = await import('../api/organizationsApi')
+const realtime = await import('../api/realtime')
 
 function page<T>(content: T[]) {
   return { content, page: 0, size: 200, totalElements: content.length, totalPages: 1 }
@@ -74,6 +76,27 @@ describe('KanbanBoardPage', () => {
     expect(screen.getByRole('region', { name: 'In Progress' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'In Review' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Done' })).toBeInTheDocument()
+  })
+
+  it('subscribes to the project board topic and refetches when another user changes a task', async () => {
+    let push: (event: RealtimeEvent) => void = () => undefined
+    vi.mocked(realtime.subscribeToTopic).mockImplementation((_destination, onEvent) => {
+      push = onEvent
+      return () => undefined
+    })
+
+    renderPage()
+    expect(await screen.findByText('First task')).toBeInTheDocument()
+    expect(realtime.subscribeToTopic).toHaveBeenCalledWith('/topic/projects/proj-1/board', expect.any(Function))
+
+    const callsBefore = vi.mocked(tasksApi.listByStatus).mock.calls.length
+    vi.mocked(tasksApi.listByStatus).mockImplementation((_projectId: string, status: TaskStatus) =>
+      Promise.resolve(page(status === 'TODO' ? [task({ id: 't2', title: 'Added by a teammate' })] : [])),
+    )
+    push({ type: 'TASK_CREATED', taskId: 't2' })
+
+    expect(await screen.findByText('Added by a teammate')).toBeInTheDocument()
+    expect(vi.mocked(tasksApi.listByStatus).mock.calls.length).toBeGreaterThan(callsBefore)
   })
 
   it('shows a loading state while the columns load', async () => {

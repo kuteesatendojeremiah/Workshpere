@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/health", "/api/v1/auth/**")
+                        .requestMatchers("/health", "/api/v1/auth/**", "/ws/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

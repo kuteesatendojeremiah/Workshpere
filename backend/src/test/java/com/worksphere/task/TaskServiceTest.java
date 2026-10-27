@@ -41,12 +41,15 @@ class TaskServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private com.worksphere.common.realtime.RealtimePublisher realtimePublisher;
+
     private TaskService taskService;
 
     @BeforeEach
     void setUp() {
         taskService = new TaskService(
-                taskRepository, taskDependencyRepository, projectService, userService, notificationService);
+                taskRepository, taskDependencyRepository, projectService, userService, notificationService, realtimePublisher);
     }
 
     @Test

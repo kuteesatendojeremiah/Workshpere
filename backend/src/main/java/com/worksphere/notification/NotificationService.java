@@ -1,5 +1,6 @@
 package com.worksphere.notification;
 
+import com.worksphere.common.realtime.RealtimePublisher;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,13 +17,19 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    private final RealtimePublisher realtimePublisher;
+
+    public NotificationService(
+            NotificationRepository notificationRepository, RealtimePublisher realtimePublisher) {
         this.notificationRepository = notificationRepository;
+        this.realtimePublisher = realtimePublisher;
     }
 
     @Transactional
     public void notify(UUID recipientId, NotificationType type, String message, String resourceType, UUID resourceId) {
-        notificationRepository.save(new Notification(recipientId, type, message, resourceType, resourceId));
+        Notification saved =
+                notificationRepository.save(new Notification(recipientId, type, message, resourceType, resourceId));
+        realtimePublisher.notificationCreated(recipientId, saved.getId());
     }
 
     @Transactional(readOnly = true)

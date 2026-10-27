@@ -1,6 +1,7 @@
 package com.worksphere.task;
 
 import com.worksphere.common.error.StaleVersionException;
+import com.worksphere.common.realtime.RealtimePublisher;
 import com.worksphere.identity.User;
 import com.worksphere.identity.UserService;
 import com.worksphere.notification.NotificationService;
@@ -25,18 +26,21 @@ public class TaskService {
     private final ProjectService projectService;
     private final UserService userService;
     private final NotificationService notificationService;
+    private final RealtimePublisher realtimePublisher;
 
     public TaskService(
             TaskRepository taskRepository,
             TaskDependencyRepository taskDependencyRepository,
             ProjectService projectService,
             UserService userService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            RealtimePublisher realtimePublisher) {
         this.taskRepository = taskRepository;
         this.taskDependencyRepository = taskDependencyRepository;
         this.projectService = projectService;
         this.userService = userService;
         this.notificationService = notificationService;
+        this.realtimePublisher = realtimePublisher;
     }
 
     @Transactional
@@ -45,7 +49,9 @@ public class TaskService {
         Project project = projectService.requireProjectAccess(projectId, callerUserId);
         Task task = new Task(project, title, description, priority, dueDate);
         task.setPosition(taskRepository.countByProject_IdAndStatus(projectId, TaskStatus.TODO));
-        return taskRepository.save(task);
+        Task saved = taskRepository.save(task);
+        realtimePublisher.boardChanged(projectId, "TASK_CREATED", saved.getId());
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -91,6 +97,7 @@ public class TaskService {
         requireCurrentVersion(task, expectedVersion);
 
         task.updateDetails(title, description, priority, dueDate);
+        realtimePublisher.boardChanged(task.getProject().getId(), "TASK_UPDATED", task.getId());
         return task;
     }
 
@@ -148,6 +155,7 @@ public class TaskService {
                     task.getId());
         }
 
+        realtimePublisher.boardChanged(projectId, "TASK_MOVED", task.getId());
         return task;
     }
 
@@ -164,6 +172,7 @@ public class TaskService {
 
         if (assigneeId == null) {
             task.assignTo(null);
+            realtimePublisher.boardChanged(task.getProject().getId(), "TASK_UPDATED", task.getId());
             return task;
         }
 
@@ -182,6 +191,7 @@ public class TaskService {
                     "TASK",
                     task.getId());
         }
+        realtimePublisher.boardChanged(task.getProject().getId(), "TASK_UPDATED", task.getId());
         return task;
     }
 
@@ -189,6 +199,7 @@ public class TaskService {
     public void deleteTask(UUID taskId, UUID callerUserId) {
         Task task = requireTaskAccess(taskId, callerUserId);
         taskRepository.delete(task);
+        realtimePublisher.boardChanged(task.getProject().getId(), "TASK_DELETED", task.getId());
     }
 
     @Transactional

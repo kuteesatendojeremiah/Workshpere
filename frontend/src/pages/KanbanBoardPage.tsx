@@ -16,6 +16,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { tasksApi } from '../api/tasksApi'
+import { useRealtimeTopic } from '../api/useRealtimeTopic'
 import { ApiError, NetworkError } from '../api/client'
 import { AppHeader } from '../components/AppHeader'
 import { useMyOrganizationRole } from '../auth/useMyOrganizationRole'
@@ -53,6 +54,11 @@ export function KanbanBoardPage() {
       queryFn: () => tasksApi.listByStatus(projectId, status),
       enabled: hasIds,
     })),
+  })
+
+  // Live updates: another user moved/created/deleted a task, so refetch every column.
+  useRealtimeTopic(hasIds ? `/topic/projects/${projectId}/board` : null, () => {
+    TASK_STATUSES.forEach((status) => void queryClient.invalidateQueries({ queryKey: columnQueryKey(status) }))
   })
 
   const allSucceeded = columnQueries.every((q) => q.isSuccess)
