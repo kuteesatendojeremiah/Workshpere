@@ -1,5 +1,6 @@
 package com.worksphere.task;
 
+import org.springframework.context.ApplicationEventPublisher;
 import com.worksphere.common.outbox.DomainEventType;
 import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.error.StaleVersionException;
@@ -32,6 +33,7 @@ public class TaskService {
     private final NotificationService notificationService;
     private final RealtimePublisher realtimePublisher;
     private final TaskSummaryCache taskSummaryCache;
+    private final ApplicationEventPublisher eventPublisher;
     private final OutboxService outboxService;
 
     public TaskService(
@@ -42,7 +44,8 @@ public class TaskService {
             NotificationService notificationService,
             RealtimePublisher realtimePublisher,
             TaskSummaryCache taskSummaryCache,
-            OutboxService outboxService) {
+            OutboxService outboxService,
+            ApplicationEventPublisher eventPublisher) {
         this.taskRepository = taskRepository;
         this.taskDependencyRepository = taskDependencyRepository;
         this.projectService = projectService;
@@ -51,6 +54,7 @@ public class TaskService {
         this.realtimePublisher = realtimePublisher;
         this.taskSummaryCache = taskSummaryCache;
         this.outboxService = outboxService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -255,6 +259,7 @@ public class TaskService {
     @Transactional
     public void deleteTask(UUID taskId, UUID callerUserId) {
         Task task = requireTaskAccess(taskId, callerUserId);
+        eventPublisher.publishEvent(new TaskDeletedEvent(taskId));
         taskRepository.delete(task);
         taskSummaryCache.evictAfterCommit(task.getProject().getId());
         realtimePublisher.boardChanged(task.getProject().getId(), "TASK_DELETED", task.getId());

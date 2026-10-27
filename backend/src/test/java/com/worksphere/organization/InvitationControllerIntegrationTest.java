@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 class InvitationControllerIntegrationTest extends AbstractIntegrationTest {
 
-    private static final Pattern TOKEN_PATTERN = Pattern.compile("token for .*?: (\\S+) \\(no email");
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("token for .*?: (\\S+) \\(dev log");
 
     @Autowired
     private MockMvc mockMvc;
@@ -51,13 +51,13 @@ class InvitationControllerIntegrationTest extends AbstractIntegrationTest {
     void attachLogAppender() {
         logAppender = new ListAppender<>();
         logAppender.start();
-        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(InvitationService.class))
+        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(com.worksphere.common.mail.EmailService.class))
                 .addAppender(logAppender);
     }
 
     @AfterEach
     void detachLogAppender() {
-        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(InvitationService.class))
+        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(com.worksphere.common.mail.EmailService.class))
                 .detachAppender(logAppender);
     }
 

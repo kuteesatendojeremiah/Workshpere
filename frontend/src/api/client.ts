@@ -29,6 +29,10 @@ export class NetworkError extends Error {
 interface RequestOptions {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
+  // A multipart upload; the browser sets the Content-Type (with its boundary) itself.
+  formData?: FormData
+  // Read the response as a file instead of JSON.
+  asBlob?: boolean
   auth?: boolean
 }
 
@@ -49,7 +53,7 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
     response = await fetch(`${BASE_URL}${path}`, {
       method: options.method,
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     })
   } catch (cause) {
     throw new NetworkError(cause)
@@ -57,6 +61,10 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
 
   if (response.status === 204) {
     return undefined as T
+  }
+
+  if (options.asBlob && response.ok) {
+    return (await response.blob()) as T
   }
 
   const text = await response.text()
@@ -77,4 +85,6 @@ export const apiClient = {
   post: <T>(path: string, body?: unknown, auth = true) => request<T>(path, { method: 'POST', body, auth }),
   put: <T>(path: string, body?: unknown, auth = true) => request<T>(path, { method: 'PUT', body, auth }),
   delete: <T>(path: string, auth = true) => request<T>(path, { method: 'DELETE', auth }),
+  postForm: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', formData }),
+  getBlob: (path: string) => request<Blob>(path, { method: 'GET', asBlob: true }),
 }

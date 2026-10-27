@@ -1,5 +1,6 @@
 package com.worksphere.organization;
 
+import com.worksphere.common.mail.EmailService;
 import com.worksphere.common.outbox.DomainEventType;
 import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
@@ -37,6 +38,7 @@ public class InvitationService {
     private final PermissionChecker permissionChecker;
     private final OutboxService outboxService;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     public InvitationService(
             InvitationRepository invitationRepository,
@@ -47,7 +49,8 @@ public class InvitationService {
             SecureTokenGenerator tokenGenerator,
             PermissionChecker permissionChecker,
             AuditService auditService,
-            OutboxService outboxService) {
+            OutboxService outboxService,
+            EmailService emailService) {
         this.invitationRepository = invitationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.roleRepository = roleRepository;
@@ -57,6 +60,7 @@ public class InvitationService {
         this.permissionChecker = permissionChecker;
         this.auditService = auditService;
         this.outboxService = outboxService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -75,12 +79,7 @@ public class InvitationService {
                 Instant.now().plus(INVITATION_TOKEN_TTL));
         invitationRepository.save(invitation);
 
-        log.info(
-                "Invitation token for {} to join organization {}: {} "
-                        + "(no email service until Step 22 - logging instead of sending)",
-                email,
-                organizationId,
-                rawToken);
+        emailService.sendInvitation(email, inviterMembership.getOrganization().getName(), rawToken);
 
         auditService.record(
                 organizationId,

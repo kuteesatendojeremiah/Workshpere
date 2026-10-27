@@ -22,6 +22,8 @@ public final class AuditAction {
     public static final String PROJECT_MEMBER_REMOVED = "PROJECT_MEMBER_REMOVED";
     public static final String SPRINT_STARTED = "SPRINT_STARTED";
     public static final String SPRINT_COMPLETED = "SPRINT_COMPLETED";
+    public static final String FILE_UPLOADED = "FILE_UPLOADED";
+    public static final String FILE_DELETED = "FILE_DELETED";
 
     private AuditAction() {
     }

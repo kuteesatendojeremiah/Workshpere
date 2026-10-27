@@ -1,5 +1,6 @@
 package com.worksphere.identity;
 
+import com.worksphere.common.mail.EmailService;
 import com.worksphere.common.outbox.DomainEventType;
 import com.worksphere.common.outbox.OutboxService;
 import com.worksphere.common.audit.AuditAction;
@@ -25,6 +26,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final SecureTokenGenerator tokenGenerator;
     private final AuditService auditService;
+    private final EmailService emailService;
     private final OutboxService outboxService;
 
     public UserService(
@@ -33,13 +35,15 @@ public class UserService {
             PasswordEncoder passwordEncoder,
             SecureTokenGenerator tokenGenerator,
             AuditService auditService,
-            OutboxService outboxService) {
+            OutboxService outboxService,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenGenerator = tokenGenerator;
         this.auditService = auditService;
         this.outboxService = outboxService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -90,11 +94,6 @@ public class UserService {
                 user, tokenGenerator.hash(rawToken), Instant.now().plus(VERIFICATION_TOKEN_TTL));
         tokenRepository.save(token);
 
-        log.info(
-                "Email verification token for user {} <{}>: {} "
-                        + "(no email service until Step 22 - logging instead of sending)",
-                user.getId(),
-                user.getEmail(),
-                rawToken);
+        emailService.sendEmailVerification(user.getEmail(), rawToken);
     }
 }

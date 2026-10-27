@@ -34,5 +34,26 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
+  minio:
+    # S3-compatible object storage for attachments. MinIO no longer publishes images to Docker Hub;
+    # this is the last Bitnami build, fine for local development only (use managed S3 in production).
+    image: bitnamilegacy/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-worksphere}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-worksphere-secret}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/bitnami/minio/data
+
+  mailpit:
+    # A fake mail server for development: catches every email; read them at http://localhost:8025
+    image: axllent/mailpit:v1.20
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web UI
+
 volumes:
+  minio-data:
   postgres-data:

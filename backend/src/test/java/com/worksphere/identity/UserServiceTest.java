@@ -21,6 +21,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class UserServiceTest {
 
     @Mock
+    private com.worksphere.common.mail.EmailService emailService;
+
+    @Mock
     private com.worksphere.common.outbox.OutboxService outboxService;
 
     @Mock
@@ -40,7 +43,7 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         userService = new UserService(
-                userRepository, tokenRepository, passwordEncoder, new SecureTokenGenerator(), auditService, outboxService);
+                userRepository, tokenRepository, passwordEncoder, new SecureTokenGenerator(), auditService, outboxService, emailService);
     }
 
     @Test

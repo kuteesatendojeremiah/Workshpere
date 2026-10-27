@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError, NetworkError } from "../api/client";
 import { commentsApi } from "../api/commentsApi";
 import { labelsApi } from "../api/labelsApi";
+import { AttachmentsSection } from "../components/AttachmentsSection";
 import { projectsApi } from "../api/projectsApi";
 import { tasksApi } from "../api/tasksApi";
 import { AppHeader } from "../components/AppHeader";
@@ -479,6 +480,8 @@ export function TaskDetailsPage() {
                 </button>
               </form>
             </section>
+
+            <AttachmentsSection taskId={taskId} />
 
             <section
               className="task-section"

@@ -34,6 +34,10 @@ public final class ErrorCode {
     public static final String INVALID_LINKED_TASK = "INVALID_LINKED_TASK";
     public static final String NOTIFICATION_NOT_FOUND = "NOTIFICATION_NOT_FOUND";
     public static final String RATE_LIMITED = "RATE_LIMITED";
+    public static final String FILE_NOT_FOUND = "FILE_NOT_FOUND";
+    public static final String INVALID_FILE = "INVALID_FILE";
+    public static final String FILE_TOO_LARGE = "FILE_TOO_LARGE";
+    public static final String STORAGE_UNAVAILABLE = "STORAGE_UNAVAILABLE";
 
     private ErrorCode() {
     }

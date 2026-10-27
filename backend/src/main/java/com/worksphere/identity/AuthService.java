@@ -1,5 +1,6 @@
 package com.worksphere.identity;
 
+import com.worksphere.common.mail.EmailService;
 import com.worksphere.common.audit.AuditAction;
 import com.worksphere.common.audit.AuditResourceType;
 import com.worksphere.common.audit.AuditService;
@@ -27,6 +28,7 @@ public class AuthService {
     private final LoginAttemptGuard loginAttemptGuard;
     private final Duration refreshTokenTtl;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     public AuthService(
             UserRepository userRepository,
@@ -37,7 +39,8 @@ public class AuthService {
             SecureTokenGenerator tokenGenerator,
             LoginAttemptGuard loginAttemptGuard,
             JwtProperties jwtProperties,
-            AuditService auditService) {
+            AuditService auditService,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -47,6 +50,7 @@ public class AuthService {
         this.loginAttemptGuard = loginAttemptGuard;
         this.refreshTokenTtl = Duration.ofDays(jwtProperties.refreshTokenTtlDays());
         this.auditService = auditService;
+        this.emailService = emailService;
     }
 
     // LOGIN_FAILED must survive the rollback that InvalidCredentialsException would otherwise
@@ -151,11 +155,6 @@ public class AuthService {
                 user, tokenGenerator.hash(rawToken), Instant.now().plus(PASSWORD_RESET_TOKEN_TTL));
         passwordResetTokenRepository.save(token);
 
-        log.info(
-                "Password reset token for user {} <{}>: {} "
-                        + "(no email service until Step 22 - logging instead of sending)",
-                user.getId(),
-                user.getEmail(),
-                rawToken);
+        emailService.sendPasswordReset(user.getEmail(), rawToken);
     }
 }

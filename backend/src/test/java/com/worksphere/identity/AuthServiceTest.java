@@ -22,6 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class AuthServiceTest {
 
     @Mock
+    private com.worksphere.common.mail.EmailService emailService;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -56,7 +59,7 @@ class AuthServiceTest {
                 new SecureTokenGenerator(),
                 loginAttemptGuard,
                 jwtProperties,
-                auditService);
+                auditService, emailService);
     }
 
     @Test

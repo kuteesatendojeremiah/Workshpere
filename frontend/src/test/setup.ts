@@ -5,3 +5,4 @@ import '@testing-library/jest-dom/vitest'
 import { vi } from 'vitest'
 vi.mock('../api/realtime', () => ({ subscribeToTopic: vi.fn(() => () => undefined) }))
 vi.mock('../components/NotificationBadge', () => ({ NotificationBadge: () => null }))
+vi.mock('../components/AttachmentsSection', () => ({ AttachmentsSection: () => null }))

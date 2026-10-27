@@ -101,7 +101,7 @@ Update this list as steps are completed.
 - [x] 19 WebSockets
 - [x] 20 Redis
 - [x] 21 Kafka + outbox
-- [ ] 22 Files + email
+- [x] 22 Files + email
 - [ ] 23 Billing / webhooks
 - [ ] 24 Observability
 - [ ] 25 Docker

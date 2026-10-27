@@ -145,3 +145,14 @@ export interface LabelResponse {
   name: string
   color: string
 }
+
+// Mirrors com.worksphere.file.FileResponse.
+export interface FileResponse {
+  id: string
+  taskId: string
+  filename: string
+  contentType: string
+  sizeBytes: number
+  uploadedBy: string
+  createdAt: string
+}

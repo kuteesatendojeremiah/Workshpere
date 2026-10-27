@@ -27,6 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TaskServiceTest {
 
     @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Mock
     private com.worksphere.common.outbox.OutboxService outboxService;
 
     @Mock
@@ -55,7 +58,7 @@ class TaskServiceTest {
     @BeforeEach
     void setUp() {
         taskService = new TaskService(
-                taskRepository, taskDependencyRepository, projectService, userService, notificationService, realtimePublisher, taskSummaryCache, outboxService);
+                taskRepository, taskDependencyRepository, projectService, userService, notificationService, realtimePublisher, taskSummaryCache, outboxService, eventPublisher);
     }
 
     @Test
