@@ -1,8 +1,10 @@
 package com.worksphere.project;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -149,6 +151,71 @@ class ProjectControllerIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/organizations/{orgId}/projects/{projectId}", organizationId, projectId)
                         .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void removingAMemberListsThemOutAndTakesAwayVisibility() throws Exception {
+        User owner = createUser("projectowner-rm@example.com");
+        User member = createUser("projectmember-rm@example.com");
+        UUID organizationId = createOrganizationAs(owner.getId(), "Acme Inc RM");
+        UUID projectId = createProjectAs(organizationId, owner.getId(), "Removal Project");
+        inviteAndAccept(organizationId, owner.getId(), member);
+        mockMvc.perform(post("/api/v1/organizations/{orgId}/projects/{projectId}/members", organizationId, projectId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\": \"" + member.getId() + "\"}"))
+                .andExpect(status().isCreated());
+
+        // Owner and the new member are both listed.
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/projects/{projectId}/members", organizationId, projectId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()", equalTo(2)));
+
+        // A plain member may not remove people.
+        mockMvc.perform(delete("/api/v1/organizations/{orgId}/projects/{projectId}/members/{userId}",
+                                organizationId, projectId, owner.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/v1/organizations/{orgId}/projects/{projectId}/members/{userId}",
+                                organizationId, projectId, member.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(status().is2xxSuccessful());
+
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/projects/{projectId}/members", organizationId, projectId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(jsonPath("$.content.length()", equalTo(1)));
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/projects/{projectId}", organizationId, projectId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ownerCanListAndRenameProjectsButMemberCannotRename() throws Exception {
+        User owner = createUser("projectowner-up@example.com");
+        User member = createUser("projectmember-up@example.com");
+        UUID organizationId = createOrganizationAs(owner.getId(), "Acme Inc UP");
+        UUID projectId = createProjectAs(organizationId, owner.getId(), "Old name");
+        inviteAndAccept(organizationId, owner.getId(), member);
+
+        mockMvc.perform(put("/api/v1/organizations/{orgId}/projects/{projectId}", organizationId, projectId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"New name\", \"description\": \"Fresh\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", equalTo("New name")));
+
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/projects", organizationId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].name", equalTo("New name")));
+
+        // A member who was never added to the project sees an empty list, not someone else's data.
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/projects", organizationId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()", equalTo(0)));
     }
 
     @Test

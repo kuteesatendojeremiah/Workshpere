@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../api/client'
 import { KanbanBoardPage } from './KanbanBoardPage'
 import type { TaskResponse, TaskStatus } from '../api/types'
 
@@ -73,6 +74,34 @@ describe('KanbanBoardPage', () => {
     expect(screen.getByRole('region', { name: 'In Progress' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'In Review' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Done' })).toBeInTheDocument()
+  })
+
+  it('shows a loading state while the columns load', async () => {
+    vi.mocked(tasksApi.listByStatus).mockReturnValue(new Promise(() => undefined))
+
+    renderPage()
+
+    expect(await screen.findByText('Loading board…')).toBeInTheDocument()
+  })
+
+  it('shows the backend error message when the board cannot be loaded', async () => {
+    vi.mocked(tasksApi.listByStatus).mockRejectedValue(
+      new ApiError(403, { code: 'MISSING_PERMISSION', message: 'You cannot view this project', details: [], timestamp: '2026-01-01T00:00:00Z', path: '/api/v1/test' }),
+    )
+
+    renderPage()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('You cannot view this project')
+  })
+
+  it('renders empty columns when the project has no tasks', async () => {
+    vi.mocked(tasksApi.listByStatus).mockResolvedValue(page([]))
+
+    renderPage()
+
+    expect(await screen.findByRole('region', { name: 'To Do' })).toBeInTheDocument()
+    expect(screen.queryByText('First task')).not.toBeInTheDocument()
+    expect(screen.queryByText('Loading board…')).not.toBeInTheDocument()
   })
 
   it('lets a manager create a new task, landing it in To Do', async () => {

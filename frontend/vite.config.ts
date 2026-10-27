@@ -14,6 +14,9 @@ export default defineConfig({
     // The default "forks" pool hangs in some sandboxed environments (process spawning
     // restrictions); "threads" works everywhere it's been tried for this project.
     pool: 'threads',
+    // Spawning 8 jsdom workers at once overloads some machines (start-up timeouts), so cap it.
+    maxWorkers: 2,
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],

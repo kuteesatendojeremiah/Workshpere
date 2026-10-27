@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../api/client'
 import { ProjectsListPage } from './ProjectsListPage'
 
 vi.mock('../api/projectsApi', () => ({
@@ -42,6 +43,24 @@ describe('ProjectsListPage', () => {
       totalElements: 1,
       totalPages: 1,
     })
+  })
+
+  it('shows a loading state while projects load', async () => {
+    vi.mocked(projectsApi.list).mockReturnValue(new Promise(() => undefined))
+
+    renderPage()
+
+    expect(await screen.findByText('Loading projects…')).toBeInTheDocument()
+  })
+
+  it('shows the backend error message when projects cannot be loaded', async () => {
+    vi.mocked(projectsApi.list).mockRejectedValue(
+      new ApiError(403, { code: 'NOT_A_MEMBER', message: 'You are not a member of this organization', details: [], timestamp: '2026-01-01T00:00:00Z', path: '/api/v1/test' }),
+    )
+
+    renderPage()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('You are not a member of this organization')
   })
 
   it('shows an empty state with no projects', async () => {

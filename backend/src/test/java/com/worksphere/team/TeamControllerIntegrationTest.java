@@ -196,6 +196,50 @@ class TeamControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.code", equalTo("USER_NOT_IN_ORGANIZATION")));
     }
 
+    @Test
+    void removingATeamMemberAndListingTeams() throws Exception {
+        User owner = createUser("teamowner-rm@example.com");
+        User member = createUser("teammember-rm@example.com");
+        UUID organizationId = createOrganizationAs(owner.getId(), "Acme Inc RM");
+        UUID teamId = createTeamAs(organizationId, owner.getId(), "Platform");
+
+        mockMvc.perform(post("/api/v1/organizations/{id}/invitations", organizationId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\": \"teammember-rm@example.com\"}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/v1/invitations/accept")
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\": \"" + extractInvitationToken() + "\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/organizations/{orgId}/teams/{teamId}/members", organizationId, teamId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userId\": \"" + member.getId() + "\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/teams", organizationId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].name", equalTo("Platform")));
+
+        // A plain member cannot remove anybody.
+        mockMvc.perform(delete("/api/v1/organizations/{orgId}/teams/{teamId}/members/{userId}",
+                                organizationId, teamId, owner.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(member.getId())))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/v1/organizations/{orgId}/teams/{teamId}/members/{userId}",
+                                organizationId, teamId, member.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(status().is2xxSuccessful());
+
+        mockMvc.perform(get("/api/v1/organizations/{orgId}/teams/{teamId}/members", organizationId, teamId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(owner.getId())))
+                .andExpect(jsonPath("$.content.length()", equalTo(1)));
+    }
+
     private String extractInvitationToken() {
         for (ILoggingEvent event : logAppender.list) {
             Matcher matcher = TOKEN_PATTERN.matcher(event.getFormattedMessage());

@@ -1,8 +1,10 @@
 package com.worksphere.issue;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -160,6 +162,71 @@ class IssueControllerIntegrationTest extends AbstractIntegrationTest {
                         .content("{\"assigneeId\": \"" + outsider.getId() + "\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", equalTo("USER_NOT_IN_PROJECT")));
+    }
+
+    @Test
+    void updatingAnIssueChangesItsFields() throws Exception {
+        User reporter = createUser("issueupdate@example.com");
+        UUID organizationId = createOrganizationAs(reporter.getId(), "Acme Inc Update");
+        UUID projectId = createProjectAs(organizationId, reporter.getId(), "Website Update");
+        UUID issueId = reportIssueAs(projectId, reporter.getId(), "Typo on homepage");
+
+        mockMvc.perform(put("/api/v1/issues/{id}", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"Typo in footer\", \"description\": \"Says 'Cotnact'\","
+                                + " \"severity\": \"HIGH\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", equalTo("Typo in footer")))
+                .andExpect(jsonPath("$.severity", equalTo("HIGH")));
+
+        mockMvc.perform(put("/api/v1/issues/{id}", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"  \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void assigningAndUnassigningAnIssue() throws Exception {
+        User reporter = createUser("issueassign@example.com");
+        UUID organizationId = createOrganizationAs(reporter.getId(), "Acme Inc Assign");
+        UUID projectId = createProjectAs(organizationId, reporter.getId(), "Website Assign");
+        UUID issueId = reportIssueAs(projectId, reporter.getId(), "Needs an owner");
+
+        mockMvc.perform(post("/api/v1/issues/{id}/assignee", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": \"" + reporter.getId() + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assigneeId", equalTo(reporter.getId().toString())));
+
+        mockMvc.perform(post("/api/v1/issues/{id}/assignee", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assigneeId", org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void unlinkingATaskClearsTheLink() throws Exception {
+        User reporter = createUser("issueunlink@example.com");
+        UUID organizationId = createOrganizationAs(reporter.getId(), "Acme Inc Unlink");
+        UUID projectId = createProjectAs(organizationId, reporter.getId(), "Website Unlink");
+        UUID issueId = reportIssueAs(projectId, reporter.getId(), "Linked then unlinked");
+        UUID taskId = createTaskAs(projectId, reporter.getId(), "Fix it");
+
+        mockMvc.perform(post("/api/v1/issues/{id}/link-task", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"taskId\": \"" + taskId + "\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/v1/issues/{id}/link-task", issueId)
+                        .header(HttpHeaders.AUTHORIZATION, bearerTokenFor(reporter.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.linkedTaskId", org.hamcrest.Matchers.nullValue()));
     }
 
     @Test

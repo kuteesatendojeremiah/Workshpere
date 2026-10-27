@@ -97,7 +97,7 @@ Update this list as steps are completed.
 - [x] 16 Notifications
 - [x] 17 Frontend dashboard (login/register, org selector, dashboard, projects list, project
       overview, Kanban board, task details)
-- [ ] 18 Testing hardening
+- [x] 18 Testing hardening
 - [ ] 19 WebSockets
 - [ ] 20 Redis
 - [ ] 21 Kafka + outbox

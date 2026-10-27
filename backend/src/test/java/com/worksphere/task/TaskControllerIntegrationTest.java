@@ -278,4 +278,34 @@ class TaskControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", equalTo("INVALID_TASK_DEPENDENCY")));
     }
+
+    @Test
+    void deletingATaskRemovesItAlongWithItsCommentsAndDependencies() throws Exception {
+        User owner = createUser("taskdelete@example.com");
+        UUID organizationId = createOrganizationAs(owner.getId(), "Acme Inc Delete");
+        UUID projectId = createProjectAs(organizationId, owner.getId(), "Delete Project");
+        JsonTask doomed = createTaskAs(projectId, owner.getId(), "Doomed");
+        JsonTask other = createTaskAs(projectId, owner.getId(), "Other");
+        String auth = bearerTokenFor(owner.getId());
+
+        mockMvc.perform(post("/api/v1/tasks/{id}/comments", doomed.id())
+                        .header(HttpHeaders.AUTHORIZATION, auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\": \"about to vanish\"}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/v1/tasks/{id}/dependencies", doomed.id())
+                        .header(HttpHeaders.AUTHORIZATION, auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dependsOnTaskId\": \"" + other.id() + "\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/v1/tasks/{id}", doomed.id()).header(HttpHeaders.AUTHORIZATION, auth))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/tasks/{id}", doomed.id()).header(HttpHeaders.AUTHORIZATION, auth))
+                .andExpect(status().isNotFound());
+        // The task that was depended on is untouched.
+        mockMvc.perform(get("/api/v1/tasks/{id}", other.id()).header(HttpHeaders.AUTHORIZATION, auth))
+                .andExpect(status().isOk());
+    }
 }
