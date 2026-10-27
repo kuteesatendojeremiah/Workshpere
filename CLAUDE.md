@@ -104,7 +104,7 @@ Update this list as steps are completed.
 - [x] 22 Files + email
 - [x] 23 Billing / webhooks
 - [x] 24 Observability
-- [ ] 25 Docker
+- [x] 25 Docker
 - [ ] 26 CI/CD
 - [ ] 27 Cloud deployment
 - [ ] 28 Performance / security hardening

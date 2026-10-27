@@ -1,4 +1,5 @@
 import { Client } from '@stomp/stompjs'
+import { brokerUrl } from './brokerUrl'
 import { getAccessToken } from './tokenStore'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
@@ -16,7 +17,7 @@ export interface RealtimeEvent {
  */
 export function subscribeToTopic(destination: string, onEvent: (event: RealtimeEvent) => void): () => void {
   const client = new Client({
-    brokerURL: `${BASE_URL.replace(/^http/, 'ws')}/ws`,
+    brokerURL: brokerUrl(BASE_URL, window.location),
     // The token is read at (re)connect time so a reconnect after login uses the current one.
     beforeConnect: () => {
       client.connectHeaders = { Authorization: `Bearer ${getAccessToken() ?? ''}` }

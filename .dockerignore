@@ -1,0 +1,13 @@
+# Build context for the frontend image is the repository root; keep it small and keep secrets out of it.
+.git/
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/target/
+**/*.log
+frontend/test-results/
+frontend/playwright-report/
+infra/observability/metrics-token
+docs/
